@@ -105,9 +105,9 @@ class TestUserSeen(TestCase):
         seen.assert_called_with(user, module=module)
 
 
-class TestMiddleWare(TestCase):
+class TestMiddleware(TestCase):
 
-    middleware = middleware.LastSeenMiddleWare()
+    middleware = middleware.LastSeenMiddleware()
 
     @mock.patch('last_seen.middleware.user_seen')
     def test_process_request(self, user_seen):

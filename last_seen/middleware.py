@@ -3,7 +3,7 @@
 from models import user_seen
 
 
-class LastSeenMiddleWare(object):
+class LastSeenMiddleware(object):
 
     def process_request(self, request):
         if request.user.is_authenticated():

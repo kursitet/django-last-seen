@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import os
 from distutils.core import setup
 
 __author__ = u'Ferran Pegueroles'
@@ -12,7 +12,7 @@ __version__ = '0.1'
 __email__ = 'ferran@pegueroles.com'
 
 
-long_description = open('README.rst').read()
+long_description = open(os.path.join(os.path.dirname(__file__), 'README.rst')).read()
 
 
 setup(
