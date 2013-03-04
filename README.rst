@@ -63,10 +63,10 @@ Then to get the data::
 Settings
 ========
 
-LAST_SEEN_DEFAULT_MODULE:
+LAST_SEEN_DEFAULT_MODULE
     The default module used on the middleware. The default value is ``default``.
 
-LAST_SEEN_INTERVAL:
+LAST_SEEN_INTERVAL
     How often is the last seen timestamp updated to the
     database. The default is 2 hours.
 
