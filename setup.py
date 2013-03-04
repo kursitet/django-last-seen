@@ -22,7 +22,7 @@ setup(
     author=__author__,
     author_email=__email__,
     license='GPL',
-    packages=['last_seen'],
+    packages=['last_seen', 'last_seen.migrations'],
     description='Keep track of when a user has been last seen',
     long_description=long_description,
     classifiers=['Development Status :: 5 - Production/Stable',
