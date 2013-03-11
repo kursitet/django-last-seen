@@ -2,7 +2,6 @@ import datetime
 import mock
 import time
 from django.test import TestCase
-from django.utils import timezone
 from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
 from django.core.cache import cache
@@ -24,8 +23,8 @@ class TestLastSeenModel(TestCase):
 
 class TestLastSeenManager(TestCase):
 
-    @mock.patch('last_seen.models.LastSeen.objects.create')
-    @mock.patch('last_seen.models.LastSeen.objects.filter')
+    @mock.patch('last_seen.models.LastSeen.objects.create', autospec=True)
+    @mock.patch('last_seen.models.LastSeen.objects.filter', autospec=True)
     def test_seen(self, filter, create):
         user = User(username='testuser')
         filter.return_value.update.return_value = 1
@@ -37,8 +36,8 @@ class TestLastSeenManager(TestCase):
                 site=Site.objects.get_current())
         self.assertFalse(create.called)
 
-    @mock.patch('last_seen.models.LastSeen.objects.create')
-    @mock.patch('last_seen.models.LastSeen.objects.filter')
+    @mock.patch('last_seen.models.LastSeen.objects.create', autospec=True)
+    @mock.patch('last_seen.models.LastSeen.objects.filter', autospec=True)
     def test_seen_create(self, filter, create):
         user = User(username='testuser')
         filter.return_value.update.return_value = 0
@@ -56,21 +55,21 @@ class TestLastSeenManager(TestCase):
         user = User(username='testuser', pk=1)
         self.assertRaises(LastSeen.DoesNotExist, LastSeen.objects.when, user)
 
-    @mock.patch('last_seen.models.LastSeen.objects.filter')
+    @mock.patch('last_seen.models.LastSeen.objects.filter', autospec=True)
     def test_seen_defaults(self, filter):
         user = User(username='testuser')
         LastSeen.objects.when(user=user)
 
         filter.assert_called_with(user=user)
 
-    @mock.patch('last_seen.models.LastSeen.objects.filter')
+    @mock.patch('last_seen.models.LastSeen.objects.filter', autospec=True)
     def test_seen_module(self, filter):
         user = User(username='testuser')
         LastSeen.objects.when(user=user, module='mod')
 
         filter.assert_called_with(user=user, module='mod')
 
-    @mock.patch('last_seen.models.LastSeen.objects.filter')
+    @mock.patch('last_seen.models.LastSeen.objects.filter', autospec=True)
     def test_seen_site(self, filter):
         user = User(username='testuser')
         site = Site()
@@ -81,13 +80,15 @@ class TestLastSeenManager(TestCase):
 
 class TestUserSeen(TestCase):
 
-    @mock.patch('last_seen.models.LastSeen.objects.seen')
+    @mock.patch('last_seen.models.LastSeen.objects.seen', autospec=True)
     def test_user_seen(self, seen):
         user = User(username='testuser', pk=1)
         user_seen(user)
-        seen.assert_called_with(user, module=settings.LAST_SEEN_DEFAULT_MODULE)
+        site = Site.objects.get_current()
+        seen.assert_called_with(user, module=settings.LAST_SEEN_DEFAULT_MODULE,
+                                site=site)
 
-    @mock.patch('last_seen.models.LastSeen.objects.seen')
+    @mock.patch('last_seen.models.LastSeen.objects.seen', autospec=True)
     def test_user_seen_cached(self, seen):
         user = User(username='testuser', pk=1)
         module = 'test_mod'
@@ -95,28 +96,29 @@ class TestUserSeen(TestCase):
         user_seen(user, module=module)
         self.assertFalse(seen.called)
 
-    @mock.patch('last_seen.models.LastSeen.objects.seen')
+    @mock.patch('last_seen.models.LastSeen.objects.seen', autospec=True)
     def test_user_seen_cache_expired(self, seen):
         user = User(username='testuser', pk=1)
         module = 'test_mod'
         cache.set("last_seen:%s:%s" % (module, user.pk),
                 time.time() - (2 * settings.LAST_SEEN_INTERVAL))
         user_seen(user, module=module)
-        seen.assert_called_with(user, module=module)
+        site = Site.objects.get_current()
+        seen.assert_called_with(user, module=module, site=site)
 
 
 class TestMiddleware(TestCase):
 
     middleware = middleware.LastSeenMiddleware()
 
-    @mock.patch('last_seen.middleware.user_seen')
+    @mock.patch('last_seen.middleware.user_seen', autospec=True)
     def test_process_request(self, user_seen):
         request = mock.Mock()
         request.user.is_authenticated.return_value = False
         self.middleware.process_request(request)
         self.assertFalse(user_seen.called)
 
-    @mock.patch('last_seen.middleware.user_seen')
+    @mock.patch('last_seen.middleware.user_seen', autospec=True)
     def test_process_request_auth(self, user_seen):
         request = mock.Mock()
         request.user.is_authenticated.return_value = True

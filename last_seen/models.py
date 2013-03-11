@@ -8,10 +8,12 @@ import settings
 
 
 class LastSeenManager(models.Manager):
-    def seen(self, user, module=settings.LAST_SEEN_DEFAULT_MODULE):
+    def seen(self, user, module=settings.LAST_SEEN_DEFAULT_MODULE, site=None):
+        if not site:
+            site = Site.objects.get_current()
         args = {
             'user': user,
-            'site': Site.objects.get_current(),
+            'site': site,
             'module': module,
         }
         updated = self.filter(**args).update(last_seen=timezone.now())
@@ -30,7 +32,8 @@ class LastSeenManager(models.Manager):
 class LastSeen(models.Model):
     site = models.ForeignKey(Site)
     user = models.ForeignKey(settings.AUTH_USER_MODEL)
-    module = models.CharField(default=settings.LAST_SEEN_DEFAULT_MODULE, max_length=20)
+    module = models.CharField(default=settings.LAST_SEEN_DEFAULT_MODULE,
+                                max_length=20)
     last_seen = models.DateTimeField(default=timezone.now)
 
     objects = LastSeenManager()
@@ -43,12 +46,18 @@ class LastSeen(models.Model):
         return u"%s on %s" % (self.user, self.last_seen)
 
 
-def user_seen(user, module=settings.LAST_SEEN_DEFAULT_MODULE):
+def get_cache_key(site, module, user):
+    return "last_seen:%s:%s:%s" % (site.id, module, user.pk)
+
+
+def user_seen(user, module=settings.LAST_SEEN_DEFAULT_MODULE, site=None):
+    if not site:
+        site = Site.objects.get_current()
+    cache_key = get_cache_key(site, module, user)
     # compute limit to update db
-    cache_key = "last_seen:%s:%s" % (module, user.pk)
     limit = time.time() - settings.LAST_SEEN_INTERVAL
     seen = cache.get(cache_key)
     if not seen or seen < limit:
         # mark the database and the cache
-        LastSeen.objects.seen(user, module=module)
+        LastSeen.objects.seen(user, module=module, site=site)
         cache.set(cache_key, time.time())
