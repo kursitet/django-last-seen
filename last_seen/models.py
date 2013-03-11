@@ -61,3 +61,13 @@ def user_seen(user, module=settings.LAST_SEEN_DEFAULT_MODULE, site=None):
         # mark the database and the cache
         LastSeen.objects.seen(user, module=module, site=site)
         cache.set(cache_key, time.time())
+
+
+def clear_interval(user):
+    keys = []
+    for last_seen in LastSeen.objects.filter(user=user):
+        cache_key = get_cache_key(last_seen.site, last_seen.module, user)
+        keys.append(cache_key)
+
+    if keys:
+        cache.delete_many(keys)
