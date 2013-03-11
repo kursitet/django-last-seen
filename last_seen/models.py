@@ -8,7 +8,18 @@ import settings
 
 
 class LastSeenManager(models.Manager):
+    """
+        Manager for LastSeen objects
+
+        Provides 2 utility methods
+    """
     def seen(self, user, module=settings.LAST_SEEN_DEFAULT_MODULE, site=None):
+        """
+            Mask an user last on database seen with optional module and site
+
+            If module not provided uses LAST_SEEN_DEFAULT_MODULE from settings
+            If site not provided uses current site
+        """
         if not site:
             site = Site.objects.get_current()
         args = {
@@ -47,10 +58,22 @@ class LastSeen(models.Model):
 
 
 def get_cache_key(site, module, user):
+    """
+        Get cache database to cache last database write timestamp
+    """
     return "last_seen:%s:%s:%s" % (site.id, module, user.pk)
 
 
 def user_seen(user, module=settings.LAST_SEEN_DEFAULT_MODULE, site=None):
+    """
+        Mask an user last seen on database if LAST_SEEN_INTERVAL seconds
+        have passed from last database write.
+
+        Uses optional module and site
+
+        If module not provided uses LAST_SEEN_DEFAULT_MODULE from settings
+        If site not provided uses current site
+    """
     if not site:
         site = Site.objects.get_current()
     cache_key = get_cache_key(site, module, user)
@@ -64,6 +87,11 @@ def user_seen(user, module=settings.LAST_SEEN_DEFAULT_MODULE, site=None):
 
 
 def clear_interval(user):
+    """
+        Clear cached interval from last database write timestamp
+
+        Usefuf if you want to force a database write for an user
+    """
     keys = []
     for last_seen in LastSeen.objects.filter(user=user):
         cache_key = get_cache_key(last_seen.site, last_seen.module, user)
