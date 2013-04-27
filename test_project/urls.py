@@ -1,8 +1,17 @@
 from django.conf.urls import patterns, include, url
+from last_seen.models import clear_interval
+from django.shortcuts import redirect
 
 # Uncomment the next two lines to enable the admin:
 from django.contrib import admin
 admin.autodiscover()
+
+
+def clear(request):
+    """ Testing view to force clear interval of user"""
+    clear_interval(request.user)
+    return redirect("/admin")
+
 
 urlpatterns = patterns('',
     # Examples:
@@ -14,4 +23,5 @@ urlpatterns = patterns('',
 
     # Uncomment the next line to enable the admin:
     url(r'^admin/', include(admin.site.urls)),
+    url(r'^clear/', clear),
 )

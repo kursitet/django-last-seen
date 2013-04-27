@@ -5,6 +5,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
 from django.core.cache import cache
+from django.utils import timezone
 
 from last_seen.models import LastSeen, user_seen, clear_interval
 from last_seen import settings
@@ -23,45 +24,99 @@ class TestLastSeenModel(TestCase):
 
 class TestLastSeenManager(TestCase):
 
-    @mock.patch('last_seen.models.LastSeen.objects.create', autospec=True)
-    @mock.patch('last_seen.models.LastSeen.objects.filter', autospec=True)
-    def test_seen(self, filter, create):
-        user = User(username='testuser')
-        filter.return_value.update.return_value = 1
+    @mock.patch('last_seen.models.LastSeen.objects.get_or_create',
+                                                            autospec=True)
+    def test_seen(self, get_or_create):
+        user = User(username='testuser', pk=1)
+        lastseen = mock.Mock(LastSeen)
+        get_or_create.return_value = (lastseen, True)
 
         LastSeen.objects.seen(user=user)
 
-        filter.assert_called_with(user=user,
+        get_or_create.assert_called_with(user=user,
                 module=settings.LAST_SEEN_DEFAULT_MODULE,
                 site=Site.objects.get_current())
-        self.assertFalse(create.called)
+        self.assertFalse(lastseen.save.called)
 
-    @mock.patch('last_seen.models.LastSeen.objects.create', autospec=True)
-    @mock.patch('last_seen.models.LastSeen.objects.filter', autospec=True)
-    def test_seen_no_default(self, filter, create):
-        user = User(username='testuser')
+    @mock.patch('last_seen.models.LastSeen.objects.get_or_create',
+                                                            autospec=True)
+    def test_seen_no_default(self, get_or_create):
+        user = User(username='testuser', pk=1)
         site = Site(pk=2)
-        filter.return_value.update.return_value = 1
+        get_or_create.return_value = (None, True)
 
         LastSeen.objects.seen(user=user, site=site, module="test")
 
-        filter.assert_called_with(user=user, module="test", site=site)
-        self.assertFalse(create.called)
+        get_or_create.assert_called_with(user=user, module="test", site=site)
 
-    @mock.patch('last_seen.models.LastSeen.objects.create', autospec=True)
-    @mock.patch('last_seen.models.LastSeen.objects.filter', autospec=True)
-    def test_seen_create(self, filter, create):
+    @mock.patch('last_seen.models.LastSeen.objects.get_or_create',
+                                                            autospec=True)
+    def test_seen_create(self, get_or_create):
         user = User(username='testuser')
-        filter.return_value.update.return_value = 0
+        lastseen = mock.Mock(LastSeen)
+        get_or_create.return_value = (lastseen, True)
 
         LastSeen.objects.seen(user=user)
 
-        filter.assert_called_with(user=user,
+        get_or_create.assert_called_with(user=user,
                 module=settings.LAST_SEEN_DEFAULT_MODULE,
                 site=Site.objects.get_current())
-        create.assert_called_with(user=user,
+        self.assertFalse(lastseen.save.called)
+
+    @mock.patch('last_seen.models.LastSeen.objects.get_or_create',
+                                                            autospec=True)
+    def test_seen_update(self, get_or_create):
+        user = User(username='testuser')
+        lastseen = mock.Mock(LastSeen)
+        # force last seen old
+        old_time = timezone.now() - \
+                datetime.timedelta(seconds=(settings.LAST_SEEN_INTERVAL * 2))
+        lastseen.last_seen = old_time
+        get_or_create.return_value = (lastseen, False)
+
+        ret = LastSeen.objects.seen(user=user)
+
+        get_or_create.assert_called_with(user=user,
                 module=settings.LAST_SEEN_DEFAULT_MODULE,
                 site=Site.objects.get_current())
+        self.assertTrue(lastseen.save.called)
+        self.assertNotEqual(ret.last_seen, old_time)
+
+    @mock.patch('last_seen.models.LastSeen.objects.get_or_create',
+                                                            autospec=True)
+    def test_seen_update_forced(self, get_or_create):
+        user = User(username='testuser')
+        lastseen = mock.Mock(LastSeen)
+        # force last seen old
+        old_time = timezone.now()
+        lastseen.last_seen = old_time
+        get_or_create.return_value = (lastseen, False)
+
+        ret = LastSeen.objects.seen(user=user, force=True)
+
+        get_or_create.assert_called_with(user=user,
+                module=settings.LAST_SEEN_DEFAULT_MODULE,
+                site=Site.objects.get_current())
+        self.assertTrue(lastseen.save.called)
+        self.assertNotEqual(ret.last_seen, old_time)
+
+    @mock.patch('last_seen.models.LastSeen.objects.get_or_create',
+                                                            autospec=True)
+    def test_seen_found_not_updated(self, get_or_create):
+        user = User(username='testuser')
+        lastseen = mock.Mock(LastSeen)
+        # force last seen old
+        old_time = timezone.now()
+        lastseen.last_seen = old_time
+        get_or_create.return_value = (lastseen, False)
+
+        ret = LastSeen.objects.seen(user=user)
+
+        get_or_create.assert_called_with(user=user,
+                module=settings.LAST_SEEN_DEFAULT_MODULE,
+                site=Site.objects.get_current())
+        self.assertFalse(lastseen.save.called)
+        self.assertEqual(ret.last_seen, old_time)
 
     def test_when_non_existent(self):
         user = User(username='testuser', pk=1)
@@ -92,9 +147,13 @@ class TestLastSeenManager(TestCase):
 
 class TestUserSeen(TestCase):
 
+    def setUp(self):
+        [cache.delete(key) for key in cache._cache.keys()]
+
     @mock.patch('last_seen.models.LastSeen.objects.seen', autospec=True)
     def test_user_seen(self, seen):
-        user = User(username='testuser', pk=1)
+        user = User(username='testuser', pk=999)
+
         user_seen(user)
         site = Site.objects.get_current()
         seen.assert_called_with(user, module=settings.LAST_SEEN_DEFAULT_MODULE,
@@ -140,8 +199,8 @@ class TestClearInterval(TestCase):
         clear_interval(user)
 
         filter.assert_called_with(user=user)
-        expected = ['last_seen:1:mod1:1', 'last_seen:1:mod2:1']
-        cache.delete_many.assert_called_with(expected)
+        expected = {'last_seen:1:mod1:1': -1, 'last_seen:1:mod2:1': -1}
+        cache.set_many.assert_called_with(expected)
 
     @mock.patch('last_seen.models.LastSeen.objects.filter', autospec=True)
     @mock.patch('last_seen.models.cache', autospec=True)
@@ -153,6 +212,17 @@ class TestClearInterval(TestCase):
 
         filter.assert_called_with(user=user)
         self.assertFalse(cache.delete_many.called)
+
+    def test_clear_interval_works(self):
+        user = User.objects.create(username='testuser')
+
+        user_seen(user)
+        when1 = LastSeen.objects.when(user=user)
+        clear_interval(user)
+        user_seen(user)
+        when2 = LastSeen.objects.when(user=user)
+
+        self.assertNotEqual(when1, when2)
 
 
 class TestMiddleware(TestCase):

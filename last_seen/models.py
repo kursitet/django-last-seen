@@ -1,4 +1,5 @@
 import time
+import datetime
 from django.db import models
 from django.contrib.sites.models import Site
 from django.utils import timezone
@@ -13,12 +14,16 @@ class LastSeenManager(models.Manager):
 
         Provides 2 utility methods
     """
-    def seen(self, user, module=settings.LAST_SEEN_DEFAULT_MODULE, site=None):
+    def seen(self, user, module=settings.LAST_SEEN_DEFAULT_MODULE, site=None,
+                force=False):
         """
             Mask an user last on database seen with optional module and site
 
             If module not provided uses LAST_SEEN_DEFAULT_MODULE from settings
             If site not provided uses current site
+
+            The last seen object is only updates is LAST_SEEN_INTERVAL seconds
+            passed from last update or force=True
         """
         if not site:
             site = Site.objects.get_current()
@@ -27,9 +32,18 @@ class LastSeenManager(models.Manager):
             'site': site,
             'module': module,
         }
-        updated = self.filter(**args).update(last_seen=timezone.now())
-        if not updated:
-            self.create(**args)
+        seen, created = self.get_or_create(**args)
+        if created:
+            return seen
+
+        # if we get the object, see if we need to update
+        limit = timezone.now() - \
+            datetime.timedelta(seconds=settings.LAST_SEEN_INTERVAL)
+        if seen.last_seen < limit or force:
+            seen.last_seen = timezone.now()
+            seen.save()
+
+        return seen
 
     def when(self, user, module=None, site=None):
         args = {'user': user}
@@ -81,9 +95,14 @@ def user_seen(user, module=settings.LAST_SEEN_DEFAULT_MODULE, site=None):
     limit = time.time() - settings.LAST_SEEN_INTERVAL
     seen = cache.get(cache_key)
     if not seen or seen < limit:
-        # mark the database and the cache
-        LastSeen.objects.seen(user, module=module, site=site)
-        cache.set(cache_key, time.time())
+        # mark the database and the cache, if interval is cleared force
+        # database write
+        if seen == -1:
+            LastSeen.objects.seen(user, module=module, site=site, force=True)
+        else:
+            LastSeen.objects.seen(user, module=module, site=site)
+        timeout = settings.LAST_SEEN_INTERVAL
+        cache.set(cache_key, time.time(), timeout)
 
 
 def clear_interval(user):
@@ -92,10 +111,10 @@ def clear_interval(user):
 
         Usefuf if you want to force a database write for an user
     """
-    keys = []
+    keys = {}
     for last_seen in LastSeen.objects.filter(user=user):
         cache_key = get_cache_key(last_seen.site, last_seen.module, user)
-        keys.append(cache_key)
+        keys[cache_key] = -1
 
     if keys:
-        cache.delete_many(keys)
+        cache.set_many(keys)
