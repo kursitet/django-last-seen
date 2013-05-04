@@ -8,7 +8,7 @@ __credits__ = [u'Ferran Pegueroles']
 
 
 __license__ = 'GPL'
-__version__ = '0.2'
+__version__ = '0.3'
 __email__ = 'ferran@pegueroles.com'
 
 
