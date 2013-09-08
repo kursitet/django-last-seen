@@ -15,7 +15,7 @@ Installation
    directory to your Python path.
 #. Add ``"last_seen"`` to the ``INSTALLED_APPS`` tuple found in your settings
    file.
-#. Add 'last_seen.middleware.LastSeenMiddleWare' to MIDDLEWARE_CLASSES tuple
+#. Add 'last_seen.middleware.LastSeenMiddleware' to MIDDLEWARE_CLASSES tuple
    found in your settings file.
 #. Run ``manage.py syncdb`` to create the new tables
 
