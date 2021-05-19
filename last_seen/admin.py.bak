@@ -1,7 +1,7 @@
 
 from django.contrib import admin
 
-from .models import LastSeen
+from models import LastSeen
 
 
 class LastSeenAdmin(admin.ModelAdmin):

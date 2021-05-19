@@ -18,8 +18,8 @@ class TestLastSeenModel(TestCase):
         user = User(username='testuser')
         ts = datetime.datetime(2013, 1, 1, 2, 3, 4)
         seen = LastSeen(user=user, last_seen=ts)
-        self.assertIn('testuser', str(seen))
-        self.assertIn('2013-01-01 02:03:04', str(seen))
+        self.assertIn('testuser', unicode(seen))
+        self.assertIn('2013-01-01 02:03:04', unicode(seen))
 
 
 class TestLastSeenManager(TestCase):
@@ -148,7 +148,7 @@ class TestLastSeenManager(TestCase):
 class TestUserSeen(TestCase):
 
     def setUp(self):
-        [cache.delete(key) for key in list(cache._cache.keys())]
+        [cache.delete(key) for key in cache._cache.keys()]
 
     @mock.patch('last_seen.models.LastSeen.objects.seen', autospec=True)
     def test_user_seen(self, seen):

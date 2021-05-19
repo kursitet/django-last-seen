@@ -1,6 +1,6 @@
 
 
-from .models import user_seen
+from models import user_seen
 
 
 class LastSeenMiddleware(object):
