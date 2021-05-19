@@ -5,7 +5,7 @@ from django.contrib.sites.models import Site
 from django.utils import timezone
 from django.core.cache import cache
 
-import settings
+from django.conf import settings
 
 
 class LastSeenManager(models.Manager):
