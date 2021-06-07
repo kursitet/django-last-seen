@@ -8,8 +8,11 @@ class LastSeenMiddleware(object):
         Middlewate to set timestampe when a user
         has been last seen
     """
-    def process_request(self, request):
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
         if request.user.is_authenticated():
             user_seen(request.user)
 
-        return None
+        return self.get_response()
