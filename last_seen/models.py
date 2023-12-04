@@ -1,29 +1,26 @@
-import time
 import datetime
-from django.db import models
+import time
+
 from django.contrib.sites.models import Site
-from django.utils import timezone
 from django.core.cache import cache
+from django.db import models
+from django.utils import timezone
 
 from . import settings
 
 
 class LastSeenManager(models.Manager):
+    """Define a manager for LastSeen objects.
+
+    Provides 2 utility methods.
     """
-        Manager for LastSeen objects
 
-        Provides 2 utility methods
-    """
-    def seen(self, user, module=settings.LAST_SEEN_DEFAULT_MODULE, site=None,
-                force=False):
-        """
-            Mask an user last on database seen with optional module and site
+    def seen(self, user, module=settings.LAST_SEEN_DEFAULT_MODULE, site=None, force=False):
+        """Mask an user last on database seen with optional module and site.
 
-            If module not provided uses LAST_SEEN_DEFAULT_MODULE from settings
-            If site not provided uses current site
-
-            The last seen object is only updates is LAST_SEEN_INTERVAL seconds
-            passed from last update or force=True
+        If module not provided uses LAST_SEEN_DEFAULT_MODULE from settings.
+        If site not provided uses current site.
+        The last seen object is only updates is LAST_SEEN_INTERVAL seconds passed from last update or force=True.
         """
         if not site:
             site = Site.objects.get_current()
@@ -36,7 +33,7 @@ class LastSeenManager(models.Manager):
         if created:
             return seen
 
-        # if we get the object, see if we need to update
+        # If we get the object, see if we need to update
         limit = timezone.now() - \
             datetime.timedelta(seconds=settings.LAST_SEEN_INTERVAL)
         if seen.last_seen < limit or force:
@@ -55,10 +52,9 @@ class LastSeenManager(models.Manager):
 
 
 class LastSeen(models.Model):
-    site = models.ForeignKey(Site)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL)
-    module = models.CharField(default=settings.LAST_SEEN_DEFAULT_MODULE,
-                                max_length=20)
+    site = models.ForeignKey(Site, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    module = models.CharField(default=settings.LAST_SEEN_DEFAULT_MODULE, max_length=20)
     last_seen = models.DateTimeField(default=timezone.now)
 
     objects = LastSeenManager()
@@ -67,36 +63,31 @@ class LastSeen(models.Model):
         unique_together = (('user', 'site', 'module'),)
         ordering = ('-last_seen',)
 
-    def __unicode__(self):
-        return "%s on %s" % (self.user, self.last_seen)
+    def __str__(self):
+        return f'{self.user} on {self.last_seen}'
 
 
-def get_cache_key(site, module, user):
-    """
-        Get cache database to cache last database write timestamp
-    """
-    return "last_seen:%s:%s:%s" % (site.id, module, user.pk)
+def get_cache_key(site, module: str, user):
+    """Get cache database to cache last database write timestamp."""
+    return f'last_seen:{site.id}:{module}:{user.pk}'
 
 
-def user_seen(user, module=settings.LAST_SEEN_DEFAULT_MODULE, site=None):
-    """
-        Mask an user last seen on database if LAST_SEEN_INTERVAL seconds
-        have passed from last database write.
+def user_seen(user, module: str = settings.LAST_SEEN_DEFAULT_MODULE, site=None):
+    """Mask an user last seen on database if LAST_SEEN_INTERVAL seconds have passed from last database write.
 
-        Uses optional module and site
+    Uses optional module and site.
 
-        If module not provided uses LAST_SEEN_DEFAULT_MODULE from settings
-        If site not provided uses current site
+    If module not provided uses LAST_SEEN_DEFAULT_MODULE from settings.
+    If site not provided uses current site.
     """
     if not site:
         site = Site.objects.get_current()
     cache_key = get_cache_key(site, module, user)
-    # compute limit to update db
+    # Compute limit to update DB
     limit = time.time() - settings.LAST_SEEN_INTERVAL
     seen = cache.get(cache_key)
     if not seen or seen < limit:
-        # mark the database and the cache, if interval is cleared force
-        # database write
+        # Mark the database and the cache, if interval is cleared force database write
         if seen == -1:
             LastSeen.objects.seen(user, module=module, site=site, force=True)
         else:
@@ -106,10 +97,9 @@ def user_seen(user, module=settings.LAST_SEEN_DEFAULT_MODULE, site=None):
 
 
 def clear_interval(user):
-    """
-        Clear cached interval from last database write timestamp
+    """Clear cached interval from last database write timestamp.
 
-        Usefuf if you want to force a database write for an user
+    Useful if you want to force a database write for an user
     """
     keys = {}
     for last_seen in LastSeen.objects.filter(user=user):
