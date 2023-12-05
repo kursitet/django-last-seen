@@ -1,19 +1,22 @@
-from django.conf.urls import patterns, include, url
-from last_seen.models import clear_interval
-from django.shortcuts import redirect
+from django.conf.urls import include, patterns, url
 
 # Uncomment the next two lines to enable the admin:
 from django.contrib import admin
+from django.shortcuts import redirect
+
+from last_seen.models import clear_interval
+
 admin.autodiscover()
 
 
 def clear(request):
-    """ Testing view to force clear interval of user"""
+    """Test view to force clear interval of user."""
     clear_interval(request.user)
-    return redirect("/admin")
+    return redirect('/admin')
 
 
-urlpatterns = patterns('',
+urlpatterns = patterns(
+    '',
     # Examples:
     # url(r'^$', 'test_project.views.home', name='home'),
     # url(r'^test_project/', include('test_project.foo.urls')),

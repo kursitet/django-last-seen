@@ -5,8 +5,10 @@ django-last-seen
 Keep trak of when a user has been last seen on a website.
 The last seen time is kept on the database
 
-The app is ready for django 1.5, it uses the AUTH_USER_MODEL setting to get
+The app is ready for django 4.2, it uses the AUTH_USER_MODEL setting to get
 the user model,
+
+Note: This is a fork of https://pypi.org/project/django-last-seen/ that works with modern versions of Python and Django
 
 Installation
 ============
